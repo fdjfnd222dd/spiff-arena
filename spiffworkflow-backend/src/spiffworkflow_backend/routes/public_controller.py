@@ -19,6 +19,7 @@ from spiffworkflow_backend.models.task import TaskModel
 from spiffworkflow_backend.routes.process_api_blueprint import _get_task_model_for_request
 from spiffworkflow_backend.routes.process_api_blueprint import _prepare_form_data
 from spiffworkflow_backend.routes.process_api_blueprint import _task_submit_shared
+from spiffworkflow_backend.routes.process_instances_controller import _send_bpmn_event
 from spiffworkflow_backend.services.jinja_service import JinjaService
 from spiffworkflow_backend.services.message_service import MessageService
 from spiffworkflow_backend.services.monitoring_service import get_public_version_info_data
@@ -172,11 +173,40 @@ def form_show(
         "form_schema": task_model.form_schema,
         "form_ui_schema": task_model.form_ui_schema,
         "instructions_for_end_user": instructions_for_end_user,
+        "signal_buttons": TaskService.get_ready_signals_with_button_labels(process_instance_id, task_guid),
     }
 
     response_json = {
         "form": form,
         "task_guid": task_guid,
+        "process_instance_id": process_instance_id,
+        "confirmation_message_markdown": None,
+    }
+    return make_response(jsonify(response_json), 200)
+
+
+def signal_submit(
+    process_instance_id: int,
+    task_guid: str,
+    body: dict[str, Any],
+) -> flask.wrappers.Response:
+    task_model = _get_task_model_for_request(
+        process_instance_id=process_instance_id,
+        task_guid=task_guid,
+    )
+    if task_model is None or not task_model.allows_guest(task_model.process_instance_id):
+        raise ApiError(
+            error_code="task_not_found",
+            message=f"Could not find completable task for {task_guid} in process_instance {process_instance_id}.",
+            status_code=404,
+        )
+
+    process_instance = ProcessInstanceModel.query.filter_by(id=process_instance_id).first()
+    _send_bpmn_event(process_instance, body)
+
+    response_json = {
+        "form": None,
+        "task_guid": None,
         "process_instance_id": process_instance_id,
         "confirmation_message_markdown": None,
     }

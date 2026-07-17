@@ -232,7 +232,12 @@ class TestPublicController(BaseTest):
         )
         assert response.status_code == 200
         assert response.json() is not None
-        assert response.json()["form"] == {"form_schema": None, "form_ui_schema": None, "instructions_for_end_user": ""}
+        assert response.json()["form"] == {
+            "form_schema": None,
+            "form_ui_schema": None,
+            "instructions_for_end_user": "",
+            "signal_buttons": [],
+        }
         assert response.json()["confirmation_message_markdown"] is None
         assert response.json()["task_guid"] == first_task_guid
         assert response.json()["process_instance_id"] == process_instance_id
@@ -270,6 +275,81 @@ class TestPublicController(BaseTest):
         assert response.json()["form"] is None
         assert response.json()["confirmation_message_markdown"] == "You have completed the task."
         assert response.json()["task_guid"] is None
+        assert response.json()["process_instance_id"] == process_instance_id
+
+        process_instance = ProcessInstanceModel.query.filter_by(id=process_instance_id).first()
+        assert process_instance is not None
+        assert process_instance.status == ProcessInstanceStatus.complete.value
+
+    def test_can_send_a_signal_event_from_a_guest_task(
+        self,
+        app: Flask,
+        client: TestClient,
+        with_db_and_bpmn_file_cleanup: None,
+    ) -> None:
+        admin_user = self.find_or_create_user("admin")
+        group_info: list[GroupPermissionsDict] = [
+            {
+                "users": [],
+                "name": app.config["SPIFFWORKFLOW_BACKEND_DEFAULT_PUBLIC_USER_GROUP"],
+                "permissions": [{"actions": ["create", "read", "update"], "uri": "/public/*"}],
+            },
+            {
+                "users": [admin_user.username],
+                "name": "admin",
+                "permissions": [{"actions": ["all"], "uri": "/*"}],
+            },
+        ]
+        AuthorizationService.refresh_permissions(group_info)
+
+        process_group_id = "my_process_group"
+        process_model_id = "test-signal-button-on-guest-form"
+        bpmn_file_location = "test-signal-button-on-guest-form"
+        process_model = self.create_group_and_model_with_bpmn(
+            client,
+            admin_user,
+            process_group_id=process_group_id,
+            process_model_id=process_model_id,
+            bpmn_file_location=bpmn_file_location,
+        )
+
+        admin_headers = self.logged_in_headers(admin_user)
+        response = self.create_process_instance_from_process_model_id_with_api(client, process_model.id, admin_headers)
+        assert response.json() is not None
+        process_instance_id = response.json()["id"]
+
+        response = client.post(
+            f"/v1.0/process-instances/{self.modify_process_identifier_for_path_param(process_model.id)}/{process_instance_id}/run",
+            headers=admin_headers,
+        )
+        assert response.status_code == 200
+
+        task_model = TaskModel.query.filter_by(process_instance_id=process_instance_id, state="READY").first()
+        assert task_model is not None
+        task_guid = task_model.guid
+
+        # the guest form should include the signal button
+        response = client.get(
+            f"/v1.0/public/tasks/{process_instance_id}/{task_guid}",
+        )
+        assert response.status_code == 200
+        signal_buttons = response.json()["form"]["signal_buttons"]
+        assert len(signal_buttons) == 1
+        assert signal_buttons[0]["label"] == "Cancel Form"
+
+        cookie = response.headers["Set-Cookie"]
+        cookie_split = cookie.split(";")
+        access_token = [cookie for cookie in cookie_split if cookie.startswith("access_token=")][0]
+        user_header = {"Authorization": "Bearer " + access_token.split("=")[1]}
+
+        # pressing the signal button should send the event and advance the process
+        response = client.post(
+            f"/v1.0/public/tasks/{process_instance_id}/{task_guid}/send-user-signal-event",
+            json=signal_buttons[0]["event"],
+            headers=user_header | {"Content-Type": "application/json"},
+        )
+        assert response.status_code == 200
+        assert response.json()["form"] is None
         assert response.json()["process_instance_id"] == process_instance_id
 
         process_instance = ProcessInstanceModel.query.filter_by(id=process_instance_id).first()

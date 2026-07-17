@@ -1,4 +1,4 @@
-import { Box, CircularProgress } from '@mui/material';
+import { Box, Button, CircularProgress, Stack } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import HttpService from '../../services/HttpService';
 import CustomForm from '../../components/CustomForm';
 import { recursivelyChangeNullAndUndefined } from '../../helpers';
-import { ErrorForDisplay, PublicTask } from '../../interfaces';
+import { ErrorForDisplay, EventDefinition, PublicTask } from '../../interfaces';
 import MarkdownRenderer from '../../components/MarkdownRenderer';
 import InstructionsForEndUser from '../../components/InstructionsForEndUser';
 import {
@@ -103,6 +103,25 @@ export default function PublicForm() {
     });
   };
 
+  const handleSignalSubmit = (event: EventDefinition) => {
+    if (formButtonsDisabled || !publicTask) {
+      return;
+    }
+    setFormButtonsDisabled(true);
+    setCurrentPageError(null);
+    setPublicTask(null);
+
+    HttpService.makeCallToBackend({
+      path: `/public/tasks/${publicTask.process_instance_id}/${publicTask.task_guid}/send-user-signal-event`,
+      successCallback: processSubmitResult,
+      failureCallback: (error: any) => {
+        setCurrentPageError(error);
+      },
+      httpMethod: 'POST',
+      postBody: event,
+    });
+  };
+
   const innerComponents = () => {
     if (currentPageError) {
       if (
@@ -130,6 +149,7 @@ export default function PublicForm() {
     if (publicTask) {
       let jsonSchema = publicTask.form.form_schema;
       let formUiSchema = publicTask.form.form_ui_schema;
+      const signalButtons = publicTask.form.signal_buttons;
       if (!jsonSchema) {
         jsonSchema = {
           type: 'object',
@@ -169,6 +189,22 @@ export default function PublicForm() {
                 restrictedWidth
                 reactJsonSchemaForm="mui"
               />
+              {signalButtons && signalButtons.length > 0 && (
+                <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                  {signalButtons.map((signal) => (
+                    <Button
+                      key={signal.label}
+                      name="signal.signal"
+                      disabled={formButtonsDisabled}
+                      onClick={() => handleSignalSubmit(signal.event)}
+                      variant="contained"
+                      color="secondary"
+                    >
+                      {signal.label}
+                    </Button>
+                  ))}
+                </Stack>
+              )}
             </Grid>
           </Grid>
         </>

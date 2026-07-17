@@ -593,6 +593,7 @@ export interface PublicTaskForm {
   form_schema: any;
   form_ui_schema: any;
   instructions_for_end_user?: string;
+  signal_buttons?: SignalButton[];
 }
 export interface PublicTask {
   form: PublicTaskForm;

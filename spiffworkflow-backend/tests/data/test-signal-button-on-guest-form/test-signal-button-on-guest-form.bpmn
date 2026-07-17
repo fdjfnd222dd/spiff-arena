@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:spiffworkflow="http://spiffworkflow.org/bpmn/schema/1.0/core" id="Definitions_guest_signal_button" targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_guest_signal_button" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1">
+      <bpmn:outgoing>Flow_StartToGuest</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:sequenceFlow id="Flow_StartToGuest" sourceRef="StartEvent_1" targetRef="guest_task" />
+    <bpmn:manualTask id="guest_task" name="Guest Task">
+      <bpmn:extensionElements>
+        <spiffworkflow:allowGuest>true</spiffworkflow:allowGuest>
+        <spiffworkflow:instructionsForEndUser>A guest task with a signal button.</spiffworkflow:instructionsForEndUser>
+      </bpmn:extensionElements>
+      <bpmn:incoming>Flow_StartToGuest</bpmn:incoming>
+      <bpmn:outgoing>Flow_GuestToEnd</bpmn:outgoing>
+    </bpmn:manualTask>
+    <bpmn:boundaryEvent id="signal_button_event" attachedToRef="guest_task">
+      <bpmn:extensionElements>
+        <spiffworkflow:signalButtonLabel>Cancel Form</spiffworkflow:signalButtonLabel>
+      </bpmn:extensionElements>
+      <bpmn:outgoing>Flow_SignalToCancelled</bpmn:outgoing>
+      <bpmn:signalEventDefinition id="SignalEventDefinition_1" signalRef="cancel" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="EndEvent_Completed">
+      <bpmn:incoming>Flow_GuestToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="EndEvent_Cancelled">
+      <bpmn:incoming>Flow_SignalToCancelled</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_GuestToEnd" sourceRef="guest_task" targetRef="EndEvent_Completed" />
+    <bpmn:sequenceFlow id="Flow_SignalToCancelled" sourceRef="signal_button_event" targetRef="EndEvent_Cancelled" />
+  </bpmn:process>
+  <bpmn:signal id="cancel" name="cancel" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_guest_signal_button">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="162" y="159" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="guest_task_di" bpmnElement="guest_task">
+        <dc:Bounds x="260" y="137" width="100" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Completed_di" bpmnElement="EndEvent_Completed">
+        <dc:Bounds x="432" y="159" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Cancelled_di" bpmnElement="EndEvent_Cancelled">
+        <dc:Bounds x="432" y="292" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="signal_button_event_di" bpmnElement="signal_button_event">
+        <dc:Bounds x="292" y="199" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_StartToGuest_di" bpmnElement="Flow_StartToGuest">
+        <di:waypoint x="198" y="177" />
+        <di:waypoint x="260" y="177" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_GuestToEnd_di" bpmnElement="Flow_GuestToEnd">
+        <di:waypoint x="360" y="177" />
+        <di:waypoint x="432" y="177" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_SignalToCancelled_di" bpmnElement="Flow_SignalToCancelled">
+        <di:waypoint x="310" y="235" />
+        <di:waypoint x="310" y="310" />
+        <di:waypoint x="432" y="310" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
